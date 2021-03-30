@@ -518,6 +518,18 @@ class TruStarMISP:
             except KeyError:
                 return event
 
+    def check_old_events(self, report_title, enclave_name):
+        old_events = self.misp.search(eventinfo=report_title)
+        try:
+            if old_events[0]:
+                for old_event in old_events:
+                    self.misp.delete_event(old_event)
+                    logger.info(
+                        f"{enclave_name}: Found prior version of {report_title}, updating"
+                    )
+        except IndexError:
+            logger.info(f"{enclave_name}: No prior version of {report_title} found")
+
     @retry
     def add_indicators_to_object(self, indicators, report):
         self.globals_list["attribute_count"] += len(indicators)
@@ -593,16 +605,7 @@ class TruStarMISP:
                 )
                 continue
 
-            if report.title in self.current_events_infos:
-                old_event = [
-                    event
-                    for event in self.current_events
-                    if report.title == event["info"]
-                ][0]
-                self.misp.delete_event(old_event)
-                logger.info(
-                    f"{enclave['name']}: Found prior version of {old_event['info']}, updating"
-                )
+            self.check_old_events(report.title, enclave["name"])
 
             event.info = report.title
             event.distribution = self.distribution
